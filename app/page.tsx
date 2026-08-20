@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import {
+  BOOST_HOURS,
   OFFSET_HOURS,
   isTheme,
   themeForHour,
@@ -48,6 +49,8 @@ function readOverrides() {
 
 export default function Home() {
   const [now, setNow] = useState<Date | null>(null);
+  /** ボタンで足す時間。0 か BOOST_HOURS のどちらか */
+  const [boost, setBoost] = useState(0);
   /** 毎分ちょうどに落ちる雫の波紋を打ち直すためのキー */
   const [minuteKey, setMinuteKey] = useState(0);
   const frame = useRef<number>(0);
@@ -55,6 +58,9 @@ export default function Home() {
   const lastTheme = useRef<Theme | null>(null);
   const overrides = useRef({ forcedTheme: null as Theme | null, delta: 0 });
   const panel = useRef<HTMLDivElement>(null);
+  /** rAF のループから読むため、boost は ref にも持たせる */
+  const boostRef = useRef(0);
+  const syncThemeRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     overrides.current = readOverrides();
@@ -66,13 +72,17 @@ export default function Home() {
       const theme =
         forcedTheme ??
         themeForHour(
-          new Date(Date.now() + delta + OFFSET_HOURS * 3600_000).getHours(),
+          new Date(
+            Date.now() + delta + (OFFSET_HOURS + boostRef.current) * 3600_000,
+          ).getHours(),
         );
       if (lastTheme.current !== theme) {
         lastTheme.current = theme;
         document.documentElement.dataset.theme = theme;
       }
     };
+
+    syncThemeRef.current = syncTheme;
 
     const tick = () => {
       const next = new Date(Date.now() + delta);
@@ -105,6 +115,11 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    boostRef.current = boost;
+    syncThemeRef.current();
+  }, [boost]);
+
   const handleTilt = (event: React.MouseEvent<HTMLDivElement>) => {
     const el = panel.current;
     if (!el) return;
@@ -128,7 +143,10 @@ export default function Home() {
     el.style.setProperty("--glare-opacity", "0.55");
   };
 
-  const shifted = now ? new Date(now.getTime() + OFFSET_HOURS * 3600_000) : null;
+  const offsetHours = OFFSET_HOURS + boost;
+  const shifted = now
+    ? new Date(now.getTime() + offsetHours * 3600_000)
+    : null;
 
   const seconds = shifted
     ? shifted.getSeconds() + shifted.getMilliseconds() / 1000
@@ -140,9 +158,9 @@ export default function Home() {
   const minuteAngle = minutes * 6;
   const hourAngle = hours * 30;
   /** うすい針＝実時刻の時針 */
-  const realHourAngle = hourAngle - OFFSET_HOURS * 30;
+  const realHourAngle = hourAngle - offsetHours * 30;
 
-  const referenceRealHour = (REFERENCE_HOUR - OFFSET_HOURS + 24) % 24;
+  const referenceRealHour = (REFERENCE_HOUR - offsetHours + 24) % 24;
 
   return (
     <>
@@ -177,7 +195,7 @@ export default function Home() {
                 className="numeric text-[11px] uppercase"
                 style={{ letterSpacing: "0.24em", color: "var(--faint)" }}
               >
-                +{pad(OFFSET_HOURS)}:00
+                +{pad(offsetHours)}:00
               </span>
             </header>
 
@@ -367,6 +385,20 @@ export default function Home() {
             </div>
 
             <div
+              className="fog-in mt-7 flex justify-center"
+              style={vars({ "--delay": "0.5s" })}
+            >
+              <button
+                type="button"
+                onClick={() => setBoost((v) => (v === 0 ? BOOST_HOURS : 0))}
+                aria-pressed={boost > 0}
+                className="boost-button numeric"
+              >
+                {boost > 0 ? "もどす" : `${BOOST_HOURS}時間すすめる`}
+              </button>
+            </div>
+
+            <div
               className="fog-in mt-8 border-t pt-6 text-sm leading-relaxed"
               style={vars({
                 "--delay": "0.55s",
@@ -375,7 +407,7 @@ export default function Home() {
               })}
             >
               <p>
-                実時刻より1時間はやく生きています。いちばん暑い時間を、外の予定から外せます。
+                実時刻より{offsetHours}時間はやく生きています。いちばん暑い時間を、外の予定から外せます。
               </p>
               <p className="numeric mt-2">
                 この時計の {pad(REFERENCE_HOUR)}:00 は、実時刻の{" "}
