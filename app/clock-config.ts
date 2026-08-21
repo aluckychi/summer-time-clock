@@ -1,9 +1,6 @@
 /** 進める時間（固定） */
 export const OFFSET_HOURS = 1;
 
-/** ボタンでさらに進める時間 */
-export const BOOST_HOURS = 2;
-
 /** テーマの切り替え時刻（この時計が表示している時刻＝サマータイム基準） */
 export const MORNING_START = 6;
 export const DAY_START = 10;
