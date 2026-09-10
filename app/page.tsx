@@ -381,6 +381,9 @@ export default function Home() {
                 この時計の {pad(REFERENCE_HOUR)}:00 は、実時刻の{" "}
                 {pad(referenceRealHour)}:00 です。うすい針は実時刻の時針です。
               </p>
+              <p className="mt-2">
+                PRプレビューの動作確認用に追記した一文です。確認が済んだらこのPRは閉じます。
+              </p>
             </div>
           </div>
         </div>
